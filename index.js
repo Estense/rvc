@@ -1,9 +1,26 @@
 const express = require("express");
-const path = require('path')
+const path = require('path');
+const open = require('open');
+const Client = require('ftp');
+const fs = require('fs');
+const ini = require('ini');
+var cors = require('cors')
+
+
+
 
 const app = express();
-
+app.use(cors());
 const port = process.env.PORT || "8000";
+
+var ftphost = {
+  //'host': "192.168.0.222",
+  'host': "127.0.0.1",
+  'port': '21',
+  'user': 'root',
+  'password': '1234'
+}
+
 
 app.listen(port, () => {
   console.log(`http://localhost:${port}`);
@@ -17,12 +34,35 @@ app.get('/ini', (req, res) => {
 
 app.get('/file', (req, res) => {
   let name = req.query.name;
-  res.send(`${name}`)
+  let c = new Client();
+  c.connect(ftphost);
+  c.on('ready',   function() {
+    c.get(name, function(err, stream) {
+      if (err) throw err;
+      stream.once('close', function() { c.end(); });
+      stream.pipe(fs.createWriteStream(name));
+      stream.pipe(res.send(ini.parse(fs.readFileSync(`./${name}`, 'utf-8'))))
+    });
+  });
 });
 
-app.get('/files', (req, res) => {
-  let files = ['123', '321', '232'];
-  res.send(files)
-})
+app.get('/list', (req, res) => {
+  var c = new Client();
+  c.connect(ftphost);
+  c.on('ready', function () {
+    c.list(function (err, list) {
+      if (err) throw err;
+      res.send(list)
+      c.end();
+    });
+  });
+});
+
+app.get('/connect', (req, res) => {
+  c.connect(ftphost);
+ // res.sendStatus(res.statusCode);
+}) 
+
+//open(`http://localhost:${port}`);
 
 

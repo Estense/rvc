@@ -5,12 +5,18 @@ const Client = require('ftp');
 const fs = require('fs');
 const ini = require('ini');
 var cors = require('cors')
+const basicAuth = require('express-basic-auth')
+
 
 
 
 
 const app = express();
 app.use(cors());
+app.use(basicAuth({
+  users: { 'admin': '1234' },
+  challenge: true
+}));
 const port = process.env.PORT || "8000";
 
 var ftphost = {
@@ -34,14 +40,19 @@ app.get('/ini', (req, res) => {
 
 app.get('/file', (req, res) => {
   let name = req.query.name;
+  let fileExtension = name.split('.');
+  console.log(fileExtension);
   let c = new Client();
   c.connect(ftphost);
   c.on('ready',   function() {
     c.get(name, function(err, stream) {
       if (err) throw err;
       stream.once('close', function() { c.end(); });
-      stream.pipe(fs.createWriteStream(name));
-      stream.pipe(res.send(ini.parse(fs.readFileSync(`./${name}`, 'utf-8'))))
+      stream.pipe(fs.createWriteStream(`./static/${name}`));
+      if (fileExtension[fileExtension.length - 1] === 'ini') {
+        console.log(fileExtension);
+        stream.pipe(res.send(ini.parse(fs.readFileSync(`./${name}`, 'utf-8'))))
+      } 
     });
   });
 });
@@ -60,8 +71,12 @@ app.get('/list', (req, res) => {
 
 app.get('/connect', (req, res) => {
   c.connect(ftphost);
- // res.sendStatus(res.statusCode);
 }) 
+
+app.get('/logout', (req, res) => {
+  res.status(401).send('Logged out')
+
+})
 
 //open(`http://localhost:${port}`);
 
